@@ -1,0 +1,40 @@
+from pydantic import BaseModel, Field
+from typing import Dict, List, Optional, Tuple
+
+class ResponseModel(BaseModel):
+    start_time: float
+    end_time: float
+    total_time: float = Field(default=0)
+    
+    def __post_init__(self) -> None:
+        self.total_time = self.end_time - self.start_time
+
+class APIModel(BaseModel):
+    """APIModel
+
+    api_name (str): Name of the API
+    total_request (int): Request count for this API
+    response_data (Dict[str, ResponseModel]): {
+        user_ip (IP address): [
+            start_time (float): start time when the request was received
+            end_time (float): end time when the request was completed
+            total_time (float): total time take the request to complete
+        ]
+    }
+    """
+    api_name: str
+    total_request: Optional[int] = None
+    resposne_data: Dict[str, List[ResponseModel]]
+    success: bool
+    avg_response_time: float = Field(default=0)
+    
+    def __post_init__(self) -> None:
+        # Storing average response time across all the users
+        self.avg_response_time = ((self.avg_response_time * self.total_request) + self.resposne_data.total_time) / (self.total_request + 1)
+        self.total_request += 1
+
+
+def get_max_average_response_time_across_the_users() -> Tuple[str, float]:
+    collection = db.collection(APIModel)
+    document = collection.findOne({}).sort("-avg_response_time")
+    return (document.api_name, document.avg_response_time)
